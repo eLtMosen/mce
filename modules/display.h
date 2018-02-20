@@ -274,11 +274,11 @@
  * Hint for settings UI. Also used for adaptive dimming within mce.
  */
 # define MCE_SETTING_DISPLAY_DIM_TIMEOUT_LIST            MCE_SETTING_DISPLAY_PATH "/possible_display_dim_timeouts"
-# define MCE_DEFAULT_DISPLAY_DIM_TIMEOUT_LIST            15,30,60,120,600
+# define MCE_DEFAULT_DISPLAY_DIM_TIMEOUT_LIST            10,30,60,120,600
 
 /** Display dimming delay [s] */
 # define MCE_SETTING_DISPLAY_DIM_TIMEOUT                 MCE_SETTING_DISPLAY_PATH "/display_dim_timeout"
-# define MCE_DEFAULT_DISPLAY_DIM_TIMEOUT                 30
+# define MCE_DEFAULT_DISPLAY_DIM_TIMEOUT                 10
 
 /** Display dimming delay when slidable hw keyboard is open [s]
  *
@@ -353,15 +353,15 @@
  * Hint for settings UI. Not used by MCE itself.
  */
 # define MCE_SETTING_DISPLAY_BLANK_TIMEOUT_LIST          MCE_SETTING_DISPLAY_PATH "/possible_display_blank_timeouts"
-# define MCE_DEFAULT_DISPLAY_BLANK_TIMEOUT_LIST          3,10,15
+# define MCE_DEFAULT_DISPLAY_BLANK_TIMEOUT_LIST          5,10,15
 
 /** Display blanking delay from dimmed state [s] */
 # define MCE_SETTING_DISPLAY_BLANK_TIMEOUT               MCE_SETTING_DISPLAY_PATH "/display_blank_timeout"
-# define MCE_DEFAULT_DISPLAY_BLANK_TIMEOUT               3
+# define MCE_DEFAULT_DISPLAY_BLANK_TIMEOUT               5
 
 /** Display blanking delay from lockscreen [s] */
 # define MCE_SETTING_DISPLAY_BLANK_FROM_LOCKSCREEN_TIMEOUT MCE_SETTING_DISPLAY_PATH "/display_blank_from_locksreen_timeout"
-# define MCE_DEFAULT_DISPLAY_BLANK_FROM_LOCKSCREEN_TIMEOUT 10
+# define MCE_DEFAULT_DISPLAY_BLANK_FROM_LOCKSCREEN_TIMEOUT 5
 
 /** Display blanking delay from lpm-on state [s] */
 # define MCE_SETTING_DISPLAY_BLANK_FROM_LPM_ON_TIMEOUT   MCE_SETTING_DISPLAY_PATH "/display_blank_from_lpm_on_timeout"
