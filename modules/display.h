@@ -225,7 +225,7 @@
  *       will migrate old-style values to [1,100] range on startup.
  */
 # define MCE_SETTING_DISPLAY_BRIGHTNESS                  MCE_SETTING_DISPLAY_PATH "/display_brightness"
-# define MCE_DEFAULT_DISPLAY_BRIGHTNESS                  3 // uses legacy [1,5] range = 60%
+# define MCE_DEFAULT_DISPLAY_BRIGHTNESS                  5 // uses legacy [1,5] range = 60%
 
 /** Default brightness fade duration [ms]
  *
