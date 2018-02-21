@@ -292,7 +292,7 @@ static evin_iomon_extra_t *evin_iomon_extra_create              (int fd, const c
 
 // common rate limited activity generation
 
-static void         evin_iomon_generate_activity                (struct input_event *ev, bool cooked, bool raw);
+void         evin_iomon_generate_activity                (struct input_event *ev, bool cooked, bool raw);
 
 // event handling by device type
 
@@ -1899,7 +1899,7 @@ evin_iomon_device_rem_all(void)
  * @param cooked   True, if generic activity should be sent
  * @param raw      True, if non-synthetized activity should be sent
  */
-static void
+void
 evin_iomon_generate_activity(struct input_event *ev, bool cooked, bool raw)
 {
     static time_t t_cooked = 0;
@@ -2014,26 +2014,15 @@ evin_iomon_touchscreen_cb(mce_io_mon_t *iomon, gpointer data, gsize bytes_read)
 
     bool grabbed = datapipe_get_gint(touch_grab_wanted_pipe);
 
-    bool doubletap = false;
-
     evin_iomon_extra_t *extra = mce_io_mon_get_user_data(iomon);
     if( extra && extra->ex_mt_state ) {
         bool touching_prev = mt_state_touching(extra->ex_mt_state);
-        doubletap = mt_state_handle_event(extra->ex_mt_state, ev);
+        mt_state_handle_event(extra->ex_mt_state, ev);
         bool touching_curr = mt_state_touching(extra->ex_mt_state);
 
         if( touching_prev != touching_curr )
             evin_touchstate_schedule_update();
     }
-
-#ifdef ENABLE_DOUBLETAP_EMULATION
-    if( doubletap && evin_iomon_sw_gestures_allowed() ) {
-        mce_log(LL_DEVEL, "[doubletap] emulated from touch input");
-        ev->type  = EV_MSC;
-        ev->code  = MSC_GESTURE;
-        ev->value = GESTURE_DOUBLETAP;
-    }
-#endif
 
     /* Power key up event from touch screen -> double tap gesture event */
     if( ev->type == EV_KEY && ev->code == KEY_POWER && ev->value == 0 ) {

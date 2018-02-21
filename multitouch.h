@@ -34,7 +34,7 @@ typedef struct mt_state_t mt_state_t;
 
 mt_state_t        *mt_state_create       (bool protocol_b);
 void               mt_state_delete       (mt_state_t *self);
-bool               mt_state_handle_event (mt_state_t *self, const struct input_event *ev);
+void               mt_state_handle_event (mt_state_t *self, const struct input_event *ev);
 bool               mt_state_touching     (const mt_state_t *self);
 
 #endif /* MCE_MULTITOUCH_H_ */
