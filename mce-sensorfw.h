@@ -29,6 +29,10 @@ void mce_sensorfw_orient_set_notify(void (*cb)(int state));
 void mce_sensorfw_orient_enable(void);
 void mce_sensorfw_orient_disable(void);
 
+void mce_sensorfw_wrist_set_notify(void (*cb)(int state));
+void mce_sensorfw_wrist_enable(void);
+void mce_sensorfw_wrist_disable(void);
+
 # ifdef __cplusplus
 };
 # endif

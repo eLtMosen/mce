@@ -1893,7 +1893,7 @@ EXIT:
 /** Cached Orientation Sensor value */
 static orientation_state_t orientation_state = MCE_ORIENTATION_UNDEFINED;
 
-/** Handle orientation_sensor_pipe notifications
+/** Handleorientation_sensor_pipe notifications
  *
  * @param data The orientation state stored in a pointer
  */

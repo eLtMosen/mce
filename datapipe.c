@@ -238,6 +238,8 @@ datapipe_struct music_playback_pipe;
 /** proximity blanking; read only */
 datapipe_struct proximity_blank_pipe;
 
+/** wrist gesture; read only */
+datapipe_struct wristgesture_sensor_pipe;
 /**
  * Execute the input triggers of a datapipe
  *
@@ -865,6 +867,9 @@ void mce_datapipe_init(void)
 		       0, GINT_TO_POINTER(FALSE));
 	setup_datapipe(&proximity_blank_pipe, READ_ONLY, DONT_FREE_CACHE,
 		       0, GINT_TO_POINTER(FALSE));
+    setup_datapipe(&wristsensor_sensor_pipe, READ_ONLY, DONT_FREE_CACHE,
+               0, GINT_TO_POINTER(FALSE));
+
 }
 
 /** Free all datapipes
@@ -937,6 +942,7 @@ void mce_datapipe_quit(void)
 	free_datapipe(&keypad_grab_wanted_pipe);
 	free_datapipe(&music_playback_pipe);
 	free_datapipe(&proximity_blank_pipe);
+    free_datapipe(&wristgesture_sensor_pipe);
 }
 
 /** Convert submode_t bitmap changes to human readable string

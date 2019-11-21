@@ -154,6 +154,7 @@ extern datapipe_struct keypad_grab_wanted_pipe;
 extern datapipe_struct keypad_grab_active_pipe;
 extern datapipe_struct music_playback_pipe;
 extern datapipe_struct proximity_blank_pipe;
+extern datapipe_struct wristgesture_sensor_pipe;
 
 /* Data retrieval */
 

@@ -83,6 +83,10 @@ static void     sg_orientation_state_update (void);
 static gboolean sg_orientation_state_eff_cb (gpointer data);
 static void     sg_orientation_state_raw_cb (gconstpointer data);
 
+static void     sg_wristgesture_state_update (void);
+static gboolean sg_wristgesture_state_eff_cb (gpointer data);
+static void     sg_wristgesture_state_raw_cb (gconstpointer data);
+
 static void     sg_datapipe_init            (void);
 static void     sg_datapipe_quit            (void);
 
@@ -401,6 +405,10 @@ static datapipe_handler_t sg_datapipe_handlers[] =
     {
         .datapipe  = &orientation_sensor_pipe,
         .output_cb = sg_orientation_state_raw_cb,
+    },
+    {
+        .datapipe  = &wristgesture_sensor_pipe,
+        .output_cb = sg_wristgesture_state_raw_cb,
     },
     {
         .datapipe  = &display_state_pipe,
