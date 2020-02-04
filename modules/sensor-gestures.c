@@ -392,6 +392,18 @@ EXIT:
     return;
 }
 
+/** Handle wristgesture_sensor_pipe notifications
+ *
+ * @param data The wrist state stored in a pointer
+ */
+static void sg_wristgesture_state_raw_cb(gconstpointer data)
+{
+    mce_log(LL_DEBUG, "wrist.raw");
+
+EXIT:
+    return;
+}
+
 /** Array of datapipe handlers */
 static datapipe_handler_t sg_datapipe_handlers[] =
 {

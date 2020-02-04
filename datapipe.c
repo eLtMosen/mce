@@ -867,7 +867,7 @@ void mce_datapipe_init(void)
 		       0, GINT_TO_POINTER(FALSE));
 	setup_datapipe(&proximity_blank_pipe, READ_ONLY, DONT_FREE_CACHE,
 		       0, GINT_TO_POINTER(FALSE));
-    setup_datapipe(&wristsensor_sensor_pipe, READ_ONLY, DONT_FREE_CACHE,
+    setup_datapipe(&wristgesture_sensor_pipe, READ_ONLY, DONT_FREE_CACHE,
                0, GINT_TO_POINTER(FALSE));
 
 }
