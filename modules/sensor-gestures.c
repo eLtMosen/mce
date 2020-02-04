@@ -529,6 +529,7 @@ const gchar *g_module_check_init(GModule *module)
     sg_setting_init();
     sg_datapipe_init();
 
+    mce_sensorfw_wrist_enable();
     return NULL;
 }
 

@@ -30,6 +30,7 @@
 #include "mce-log.h"
 #include "mce-dbus.h"
 #include "libwakelock.h"
+#include "evdev.h"
 
 #include <linux/input.h>
 
@@ -3259,6 +3260,9 @@ sfw_service_delete(sfw_service_t *self)
         sfw_plugin_delete(self->srv_orient),
             self->srv_orient = 0;
 
+        sfw_plugin_delete(self->srv_wrist),
+            self->srv_wrist = 0;
+
         free(self);
     }
 }
@@ -3356,6 +3360,7 @@ sfw_service_trans(sfw_service_t *self, sfw_service_state_t state)
         sfw_plugin_do_load(self->srv_ps);
         sfw_plugin_do_load(self->srv_als);
         sfw_plugin_do_load(self->srv_orient);
+        sfw_plugin_do_load(self->srv_wrist);
         break;
 
     case SERVICE_UNKNOWN:
@@ -3364,6 +3369,7 @@ sfw_service_trans(sfw_service_t *self, sfw_service_state_t state)
         sfw_plugin_do_reset(self->srv_ps);
         sfw_plugin_do_reset(self->srv_als);
         sfw_plugin_do_reset(self->srv_orient);
+        sfw_plugin_do_reset(self->srv_wrist);
         break;
 
     default:
@@ -3669,6 +3675,8 @@ EXIT:
     return;
 }
 
+extern void evin_iomon_generate_activity (struct input_event *ev, bool cooked, bool raw);
+
 /** Notify wrist state via callback
  */
 static void
@@ -3677,6 +3685,7 @@ sfw_notify_wrist(sfw_notify_t type, bool input_value)
     static bool cached_value    = SWF_NOTIFY_DEFAULT_WRIST;
     const  bool default_value   = SWF_NOTIFY_DEFAULT_WRIST;
     static bool tracking_active = false;
+    struct input_event *ev;
 
     /* Always update cached state data */
     switch( type ) {
@@ -3698,10 +3707,6 @@ sfw_notify_wrist(sfw_notify_t type, bool input_value)
         break;
     }
 
-    /* The rest can be skipped if callback function is unset */
-    if( !sfw_notify_wrist_cb )
-        goto EXIT;
-
     /* Default value is used unless we are in fully working state */
     bool output_value = tracking_active ? cached_value : default_value ;
 
@@ -3716,8 +3721,30 @@ sfw_notify_wrist(sfw_notify_t type, bool input_value)
             input_value ? "tilted" : "untiled",
             output_value ? "tiled" : "untiled");
 
-    sfw_notify_wrist_cb(output_value);
+    ev = malloc(sizeof(struct input_event));
 
+    mce_log(LL_CRUCIAL, "[longpress] double tap emulated from wrist gesture");
+    mce_log(LL_DEVEL, "[longpress] double tap emulated from wrist gesture");
+
+    ev->type  = EV_MSC;
+    ev->code  = MSC_GESTURE;
+    ev->value = GESTURE_DOUBLETAP;
+ 
+    evin_iomon_generate_activity(ev, true, true);
+
+    submode_t submode = mce_get_submode_int32();
+
+    /* If the event eater is active, don't send anything */
+    if( submode & MCE_EVEATER_SUBMODE )
+        goto EXIT;
+
+    /* Gesture events count as actual non-synthetized
+     * user activity. */
+    evin_iomon_generate_activity(ev, false, true);
+
+    /* But otherwise are handled in powerkey.c. */
+    execute_datapipe(&keypress_pipe, &ev,
+                     USE_INDATA, DONT_CACHE_INDATA);
 EXIT:
     return;
 }
@@ -3923,7 +3950,7 @@ mce_sensorfw_orient_disable(void)
 void
 mce_sensorfw_wrist_set_notify(void (*cb)(int state))
 {
-    if( (sfw_notify_wrist_cb = cb) )
+    //if( (sfw_notify_wrist_cb = cb) )
         sfw_notify_wrist(NOTIFY_REPEAT, 0);
 }
 
