@@ -164,15 +164,15 @@
 
 /** Whether MCE is allowed to use orientation sensor */
 # define MCE_SETTING_ORIENTATION_SENSOR_ENABLED          MCE_SETTING_DISPLAY_PATH "/orientation_sensor_enabled"
-# define MCE_DEFAULT_ORIENTATION_SENSOR_ENABLED          true
+# define MCE_DEFAULT_ORIENTATION_SENSOR_ENABLED          false
 
 /** Whether device flip over gesture detection should be enabled */
 # define MCE_SETTING_FLIPOVER_GESTURE_ENABLED            MCE_SETTING_DISPLAY_PATH "/flipover_gesture_enabled"
-# define MCE_DEFAULT_FLIPOVER_GESTURE_ENABLED            true
+# define MCE_DEFAULT_FLIPOVER_GESTURE_ENABLED            false
 
 /** Whether orientation changes constitute user activity */
 # define MCE_SETTING_ORIENTATION_CHANGE_IS_ACTIVITY      MCE_SETTING_DISPLAY_PATH "/orientation_change_is_activity"
-# define MCE_DEFAULT_ORIENTATION_CHANGE_IS_ACTIVITY      true
+# define MCE_DEFAULT_ORIENTATION_CHANGE_IS_ACTIVITY      false
 
 /* ------------------------------------------------------------------------- *
  * Color profile related settings
