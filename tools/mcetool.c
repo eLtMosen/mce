@@ -3439,6 +3439,29 @@ static void xmce_get_orientation_change_is_activity(void)
         printf("%-"PAD1"s %s\n", "Orientation change is activity:", txt);
 }
 
+/** Set wrist gesture detection toggle
+ *
+ * @param args string suitable for interpreting as enabled/disabled
+ */
+static bool xmce_set_wrist_gesture_detection(const char *args)
+{
+        gboolean val = xmce_parse_enabled(args);
+        xmce_setting_set_bool(MCE_SETTING_WRIST_GESTURE_ENABLED, val);
+        return true;
+}
+
+/** Show wrist gesture detection toggle
+ */
+static void xmce_get_wrist_gesture_detection(void)
+{
+        gboolean val = 0;
+        char txt[32] = "unknown";
+
+        if( xmce_setting_get_bool(MCE_SETTING_WRIST_GESTURE_ENABLED, &val) )
+                snprintf(txt, sizeof txt, "%s", val ? "enabled" : "disabled");
+        printf("%-"PAD1"s %s\n", "Wrist tilt gesture detection:", txt);
+}
+
 /** Set flipover gesture detection toggle
  *
  * @param args string suitable for interpreting as enabled/disabled
@@ -5538,6 +5561,7 @@ static bool xmce_get_status(const char *args)
         xmce_get_orientation_sensor_mode();
         xmce_get_orientation_change_is_activity();
         xmce_get_flipover_gesture_detection();
+        xmce_get_wrist_gesture_detection();
         xmce_get_ps_mode();
         xmce_get_ps_blocks_touch();
         xmce_get_ps_acts_as_lid();
@@ -6462,6 +6486,14 @@ static const mce_opt_t options[] =
                 .with_arg    = xmce_set_flipover_gesture_detection,
                 .values      = "enabled|disabled",
                         "set the flipover gesture detection toggle; valid modes are:\n"
+                        "  'enabled'  flipover gestures can be used to silence calls/alarms\n"
+                        "  'disabled' turning device over does not affect calls/alarms\n"
+        },
+        {
+                .name        = "set-wrist-gesture-detection",
+                .with_arg    = xmce_set_wrist_gesture_detection,
+                .values      = "enabled|disabled",
+                        "set the wrist gesture detection toggle; valid modes are:\n"
                         "  'enabled'  flipover gestures can be used to silence calls/alarms\n"
                         "  'disabled' turning device over does not affect calls/alarms\n"
         },

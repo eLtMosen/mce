@@ -32,6 +32,7 @@
 
 #include <gmodule.h>
 
+
 /* ========================================================================= *
  * STATE_DATA
  * ========================================================================= */
@@ -58,6 +59,10 @@ static gint orientation_state_eff_id = 0;
 static gboolean sg_flipover_gesture_enabled = MCE_DEFAULT_FLIPOVER_GESTURE_ENABLED;
 static guint    sg_flipover_gesture_enabled_setting_id = 0;
 
+/** Use of flipover gesture enabled */
+static gboolean sg_wrist_gesture_enabled = MCE_DEFAULT_WRIST_GESTURE_ENABLED;
+static guint    sg_wrist_gesture_enabled_setting_id = 0;
+
 /* ========================================================================= *
  * FUNCTIONS
  * ========================================================================= */
@@ -83,8 +88,6 @@ static void     sg_orientation_state_update (void);
 static gboolean sg_orientation_state_eff_cb (gpointer data);
 static void     sg_orientation_state_raw_cb (gconstpointer data);
 
-static void     sg_wristgesture_state_update (void);
-static gboolean sg_wristgesture_state_eff_cb (gpointer data);
 static void     sg_wristgesture_state_raw_cb (gconstpointer data);
 
 static void     sg_datapipe_init            (void);
@@ -398,6 +401,7 @@ EXIT:
  */
 static void sg_wristgesture_state_raw_cb(gconstpointer data)
 {
+    data;
     mce_log(LL_DEBUG, "wrist.raw");
 
 EXIT:
@@ -486,6 +490,15 @@ static void sg_setting_cb(GConfClient *const gcc, const guint id,
     if( id == sg_flipover_gesture_enabled_setting_id ) {
         sg_flipover_gesture_enabled = gconf_value_get_bool(gcv);
     }
+    else if( id == sg_wrist_gesture_enabled_setting_id ) {
+        sg_wrist_gesture_enabled = gconf_value_get_bool(gcv);
+		mce_log(LL_CRIT, "sg_wrist_gesture_enabled: %d", sg_wrist_gesture_enabled);
+        if (sg_wrist_gesture_enabled) {
+            mce_sensorfw_wrist_enable();
+        } else {
+            mce_sensorfw_wrist_disable();
+        }
+    }
     else {
         mce_log(LL_WARN, "Spurious GConf value received; confused!");
     }
@@ -503,6 +516,12 @@ static void sg_setting_init(void)
                            MCE_DEFAULT_FLIPOVER_GESTURE_ENABLED,
                            sg_setting_cb,
                            &sg_flipover_gesture_enabled_setting_id);
+    mce_setting_track_bool(MCE_SETTING_WRIST_GESTURE_ENABLED,
+                           &sg_wrist_gesture_enabled,
+                           MCE_DEFAULT_WRIST_GESTURE_ENABLED,
+                           sg_setting_cb,
+                           &sg_wrist_gesture_enabled_setting_id);
+    mce_log(LL_CRIT, "sg_setting_init        sg_wrist_gesture_enabled: %d", sg_wrist_gesture_enabled);
 }
 
 /** Stop tracking setting changes */
@@ -510,6 +529,8 @@ static void sg_setting_quit(void)
 {
     mce_setting_notifier_remove(sg_flipover_gesture_enabled_setting_id),
         sg_flipover_gesture_enabled_setting_id = 0;
+    mce_setting_notifier_remove(sg_wrist_gesture_enabled_setting_id),
+        sg_wrist_gesture_enabled_setting_id = 0;
 }
 
 /* ========================================================================= *
@@ -529,7 +550,12 @@ const gchar *g_module_check_init(GModule *module)
     sg_setting_init();
     sg_datapipe_init();
 
-    mce_sensorfw_wrist_enable();
+    //mce_sensorfw_wrist_enable();
+    if (sg_wrist_gesture_enabled) {
+        mce_sensorfw_wrist_enable();
+    } else {
+        mce_sensorfw_wrist_disable();
+    }
     return NULL;
 }
 
