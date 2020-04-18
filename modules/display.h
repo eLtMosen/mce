@@ -174,9 +174,14 @@
 # define MCE_SETTING_ORIENTATION_CHANGE_IS_ACTIVITY      MCE_SETTING_DISPLAY_PATH "/orientation_change_is_activity"
 # define MCE_DEFAULT_ORIENTATION_CHANGE_IS_ACTIVITY      false
 
-/** Whether MCE is allowed to use orientation sensor */
-# define MCE_SETTING_WRIST_GESTURE_ENABLED          MCE_SETTING_DISPLAY_PATH "/wrist_sensor_enabled"
-# define MCE_DEFAULT_WRIST_GESTURE_ENABLED          true
+/** Whether MCE is allowed to use wrist gesture sensor */
+# define MCE_SETTING_WRIST_GESTURE_ENABLED              MCE_SETTING_DISPLAY_PATH "/wrist_sensor_enabled"
+# define MCE_DEFAULT_WRIST_GESTURE_ENABLED              true
+
+/** Whether the wrist gesture sensor is available on the hardware */
+# define MCE_SETTING_WRIST_GESTURE_AVAILABLE            MCE_SETTING_DISPLAY_PATH "/wrist_sensor_available"
+# define MCE_DEFAULT_WRIST_GESTURE_AVAILABLE            1
+
 
 
 /* ------------------------------------------------------------------------- *

@@ -287,6 +287,13 @@
 /** Name of wrist tilt sensor */
 #define SENSORFW_SENSOR_NAME_WRIST            "wristgesturesensor"
 
+#ifndef MCE_SETTING_DISPLAY_PATH
+#define MCE_SETTING_DISPLAY_PATH                       "/system/osso/dsm/display"
+#endif
+
+#ifndef MCE_SETTING_WRIST_GESTURE_AVAILABLE
+#define MCE_SETTING_WRIST_GESTURE_AVAILABLE            MCE_SETTING_DISPLAY_PATH "/wrist_sensor_available"
+#endif
 /* ========================================================================= *
  * FORWARD_DECLARATIONS
  * ========================================================================= */
@@ -922,6 +929,7 @@ static void              sfw_notify_ps                  (sfw_notify_t type, bool
 static void              sfw_notify_als                 (sfw_notify_t type, unsigned lux);
 static void              sfw_notify_orient              (sfw_notify_t type, int state);
 static void              sfw_notify_wrist               (sfw_notify_t type, bool wristTilted);
+static void              sfw_set_wrist_available        (sfw_plugin_t * plugin);
 
 /* ========================================================================= *
  * SENSORFW_EXCEPTION
@@ -1052,10 +1060,9 @@ sfw_backend_orient_value_cb(sfw_plugin_t *plugin, unsigned value)
 static void
 sfw_backend_wrist_value_cb(sfw_plugin_t *plugin, unsigned value)
 {
-    (void)plugin;
-
     mce_log(LL_DEBUG, "WRIST: initial state=%u", value);
 
+    sfw_set_wrist_available(plugin);
     sfw_notify_wrist(NOTIFY_SENSORD, value);
 }
 
@@ -1098,10 +1105,9 @@ sfw_backend_orient_reset_cb(sfw_plugin_t *plugin)
 static void
 sfw_backend_wrist_reset_cb(sfw_plugin_t *plugin)
 {
-    (void)plugin;
-
     mce_log(LL_DEBUG, "WRIST: state=reset-to-default");
 
+    sfw_set_wrist_available(plugin);
     sfw_notify_wrist(NOTIFY_RESET, SWF_NOTIFY_DUMMY);
 }
 
@@ -1143,10 +1149,9 @@ sfw_backend_orient_restore_cb(sfw_plugin_t *plugin)
 static void
 sfw_backend_wrist_restore_cb(sfw_plugin_t *plugin)
 {
-    (void)plugin;
-
     mce_log(LL_DEBUG, "WRIST: state=restore-to-last-known");
 
+    sfw_set_wrist_available(plugin);
     sfw_notify_wrist(NOTIFY_RESTORE, SWF_NOTIFY_DUMMY);
 }
 
@@ -3721,6 +3726,10 @@ sfw_notify_wrist(sfw_notify_t type, bool input_value)
             input_value ? "tilted" : "untiled",
             output_value ? "tiled" : "untiled");
 
+    /* Only wake screen when the sensor was triggered. */
+    if (type != NOTIFY_SENSORD)
+        goto EXIT;
+
     ev = malloc(sizeof(struct input_event));
 
     mce_log(LL_CRUCIAL, "[longpress] double tap emulated from wrist gesture");
@@ -3749,6 +3758,27 @@ EXIT:
     return;
 }
 
+
+/** Set availability of wrist tilt sensor based on connection state.
+ */
+static void
+sfw_set_wrist_available(sfw_plugin_t *plugin)
+{
+    mce_log(LL_DEBUG, "WRIST: sfw_set_wrist_available: %d", plugin->plg_session->ses_state);
+    switch(plugin->plg_session->ses_state) {
+        case SESSION_INITIAL:
+        case SESSION_IDLE:
+        case SESSION_REQUESTING:
+        case SESSION_INVALID:
+            mce_setting_set_int(MCE_SETTING_WRIST_GESTURE_AVAILABLE, 0);
+            break;
+        case SESSION_ACTIVE:
+            /* Only when a session is active we know that the sensor can be enabled. */
+            mce_setting_set_int(MCE_SETTING_WRIST_GESTURE_AVAILABLE, 1);
+        case SESSION_ERROR:
+            break;
+    }
+}
 /* ========================================================================= *
  * SENSORFW_EXCEPTION
  * ========================================================================= */

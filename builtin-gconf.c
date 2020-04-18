@@ -1255,6 +1255,11 @@ static const setting_t gconf_defaults[] =
     .def  = G_STRINGIFY(MCE_DEFAULT_WRIST_GESTURE_ENABLED),
   },
   {
+    .key  = MCE_SETTING_WRIST_GESTURE_AVAILABLE,
+    .type = "i",
+    .def  = G_STRINGIFY(MCE_DEFAULT_WRIST_GESTURE_AVAILABLE),
+  },
+  {
     .key  = MCE_SETTING_ORIENTATION_CHANGE_IS_ACTIVITY,
     .type = "b",
     .def  = G_STRINGIFY(MCE_DEFAULT_ORIENTATION_CHANGE_IS_ACTIVITY),
