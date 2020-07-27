@@ -329,35 +329,13 @@ static bool mia_activity_allowed(void)
         goto DENY;
     }
 
-    /* Normally activity does not apply when lockscreen is active */
-    if( submode & MCE_TKLOCK_SUBMODE ) {
-
-        /* Active alarm */
-        switch( alarm_ui_state ) {
-        case MCE_ALARM_UI_RINGING_INT32:
-        case MCE_ALARM_UI_VISIBLE_INT32:
-            goto ALLOW;
-
-        default:
-            break;
-        }
-
-        /* Active call */
-        switch( call_state ) {
-        case CALL_STATE_RINGING:
-        case CALL_STATE_ACTIVE:
-            goto ALLOW;
-
-        default:
-            break;
-        }
-
-        /* Expecting user interaction */
-        if( interaction_expected )
-            goto ALLOW;
-
-        goto DENY;
-    }
+    /* Allways allow activity when lockscreen is active.
+     *
+     * This allows the lockscreen to be longer visible,
+     * because the blanking timer can be cancelled.
+     */
+    if( submode & MCE_TKLOCK_SUBMODE )
+        goto ALLOW;
 
 ALLOW:
     allowed = true;
