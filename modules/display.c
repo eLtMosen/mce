@@ -373,6 +373,7 @@ static bool                mdy_shutdown_in_progress(void);
  * DATAPIPE_TRACKING
  * ------------------------------------------------------------------------- */
 
+static void                mdy_datapipe_ambient_light_level_cb(gconstpointer data);;
 static void                mdy_datapipe_packagekit_locked_cb(gconstpointer data);;
 static void                mdy_datapipe_system_state_cb(gconstpointer data);
 static void                mdy_datapipe_submode_cb(gconstpointer data);
@@ -619,6 +620,9 @@ static void                 compositor_stm_send_pid_query    (compositor_stm_t *
 static void                 compositor_stm_forget_pid_query  (compositor_stm_t *self);
 static void                 compositor_stm_pid_query_cb      (DBusPendingCall *pc, void *aptr);
 
+static void                 compositor_stm_send_lpm_request (compositor_stm_t *self);
+static void                 compositor_stm_lpm_request_cb   (DBusPendingCall *pc, void *aptr);
+
 static void                 compositor_stm_send_ctrl_request (compositor_stm_t *self);
 static void                 compositor_stm_forget_ctrl_request(compositor_stm_t *self);
 static void                 compositor_stm_ctrl_request_cb   (DBusPendingCall *pc, void *aptr);
@@ -839,6 +843,7 @@ static gboolean            mdy_dbus_handle_blanking_pause_cancel_req(DBusMessage
 static gboolean            mdy_dbus_handle_display_stats_get_req(DBusMessage *const req);
 
 static gboolean            mdy_dbus_handle_desktop_started_sig(DBusMessage *const msg);
+static gboolean            mdy_dbus_timed_wakeup_sig(DBusMessage *const msg);
 
 static void                mdy_dbus_init(void);
 static void                mdy_dbus_quit(void);
@@ -1203,6 +1208,29 @@ xlat(int src_lo, int src_hi, int dst_lo, int dst_hi, int val)
 /* ========================================================================= *
  * DATAPIPE_TRACKING
  * ========================================================================= */
+
+/** Ambient light level; assume sensor not available.
+ * This is used to avoid changing the backlight when the als is disabled.
+ */
+static int ambient_light_level = -1;
+/**
+ * Handle ambient light level updates.
+ *
+ * @param data The ambient light level in a pointer
+ */
+static void mdy_datapipe_ambient_light_level_cb(gconstpointer data)
+{
+    bool prev = ambient_light_level;
+    ambient_light_level = GPOINTER_TO_INT(data);
+
+    if( ambient_light_level == prev )
+        goto EXIT;
+
+    /* Log by default as it might help analyzing lpm problems */
+    mce_log(LL_DEBUG, "ambient_light_level = %d", ambient_light_level);
+EXIT:
+    return;
+}
 
 /** Cached lipstick availability; assume unknown */
 static service_state_t lipstick_service_state = SERVICE_STATE_UNDEF;
@@ -1616,7 +1644,9 @@ static void mdy_datapipe_lpm_brightness_cb(gconstpointer data)
 
     mce_log(LL_DEBUG, "input: %d -> %d", prev, curr);
 
-    if( curr == prev )
+    // Sometimes it happens that the brightness changes while the als is disabled(ambient_light_level = -1), this cause the 
+    // filter to return 100%, resulting in max brightness ambient mode.
+    if( (curr == prev) || (ambient_light_level < 0))
         goto EXIT;
 
     mdy_brightness_set_lpm_level(curr);
@@ -2030,6 +2060,10 @@ static datapipe_handler_t mdy_datapipe_handlers[] =
     {
         .datapipe  = &audio_route_pipe,
         .output_cb = mdy_datapipe_audio_route_cb,
+    },
+    {
+        .datapipe  = &ambient_light_level_pipe,
+        .output_cb = mdy_datapipe_ambient_light_level_cb,
     },
     {
         .datapipe  = &packagekit_locked_pipe,
@@ -3086,14 +3120,15 @@ static void mdy_brightness_set_lpm_level(gint level)
 
     /* Take updated values in use - based on non-transitional
      * display state we are in or transitioning to */
+    // Sometimes the als filter is triggered after the screen is 'off', also change brightness in those cases.
     switch( display_state_next ) {
     case MCE_DISPLAY_LPM_ON:
-        mdy_brightness_set_fade_target_als(mdy_brightness_level_display_lpm);
-        break;
-
-    default:
     case MCE_DISPLAY_OFF:
     case MCE_DISPLAY_LPM_OFF:
+        if (mdy_use_low_power_mode && mdy_low_power_mode_supported)
+            mdy_brightness_set_fade_target_als(mdy_brightness_level_display_lpm);
+        break;
+    default:
     case MCE_DISPLAY_DIM:
     case MCE_DISPLAY_ON:
     case MCE_DISPLAY_UNDEF:
@@ -3710,8 +3745,7 @@ static gboolean mdy_blanking_off_cb(gpointer data)
     case MCE_DISPLAY_DIM:
         if( lipstick_service_state != SERVICE_STATE_RUNNING )
             break;
-        if( mdy_blanking_from_lockscreen() )
-            next_state = MCE_DISPLAY_LPM_ON;
+        next_state = MCE_DISPLAY_LPM_ON;
         break;
     default:
         break;
@@ -5438,6 +5472,12 @@ struct compositor_stm_t
      */
     DBusPendingCall       *csi_ctrl_request_pc;
 
+    /** Currently pending compositor D-Bus method call
+     *
+     * Managed by compositor_stm_send_ctrl_request() & co
+     */
+    DBusPendingCall       *csi_lpm_request_pc;
+
     /** Timer id for killing unresponsive compositor process
      *
      * Managed by compositor_stm_schedule_killer() & co
@@ -5483,6 +5523,7 @@ compositor_stm_ctor(compositor_stm_t *self)
 
     /* No pending compositor dbus method call */
     self->csi_ctrl_request_pc = 0;
+    self->csi_lpm_request_pc = 0;
 
     /* Retry timer is inactive */
     self->csi_retry_timer_id = 0;
@@ -5673,6 +5714,70 @@ compositor_stm_pid_query_cb(DBusPendingCall *pc, void *aptr)
     compositor_stm_set_service_pid(self, pid);
 
 EXIT:
+
+    if( rsp ) dbus_message_unref(rsp);
+
+    dbus_error_free(&err);
+
+    return;
+}
+
+static void
+compositor_stm_send_lpm_request(compositor_stm_t *self)
+{
+    mce_log(LL_DEBUG, "compositor_stm_send_lpm_request");
+    dbus_bool_t dta = mdy_use_low_power_mode;
+
+    bool ack = dbus_send_ex2(COMPOSITOR_SERVICE,
+                             COMPOSITOR_PATH,
+                             COMPOSITOR_IFACE,
+                             COMPOSITOR_SET_AMBIENT_MODE_ENABLED,
+                             compositor_stm_lpm_request_cb,
+                             COMPOSITOR_STM_DBUS_CALL_TIMEOUT,
+                             self, 0,
+                             &self->csi_lpm_request_pc,
+                             DBUS_TYPE_BOOLEAN, &dta,
+                             DBUS_TYPE_INVALID);
+
+    if( !ack )
+        mce_log(LL_NOTICE, "Failed to send low power mode enable request");
+}
+
+/** Handle reply to pending compositor state request
+ */
+static void
+compositor_stm_lpm_request_cb(DBusPendingCall *pc, void *aptr)
+{
+    compositor_stm_t       *self = aptr;
+    DBusMessage *rsp  = 0;
+    DBusError    err  = DBUS_ERROR_INIT;
+    bool         ack  = false;
+    mce_log(LL_DEBUG, "compositor_stm_lpm_request_cb");
+
+    if( self->csi_lpm_request_pc != pc )
+        goto EXIT;
+
+    dbus_pending_call_unref(self->csi_lpm_request_pc),
+        self->csi_lpm_request_pc = 0;
+
+    if( !(rsp = dbus_pending_call_steal_reply(pc)) )
+        goto EXIT;
+
+    if( dbus_set_error_from_message(&err, rsp) ) {
+        mce_log(LL_WARN, "%s: %s", err.name, err.message);
+        goto EXIT;
+    }
+
+    ack = true;
+
+EXIT:
+    if( ack ) {
+        mce_log(LL_DEBUG, "Compositor ack LPM request support: %d, enable: %d",
+                mdy_low_power_mode_supported, mdy_use_low_power_mode);
+        mce_fbdev_set_suspend_mode(mdy_use_low_power_mode && mdy_low_power_mode_supported);
+    } else {
+        mce_log(LL_DEBUG, "LPM request wasn't acknowledged, is the compositor available?");
+    }
 
     if( rsp ) dbus_message_unref(rsp);
 
@@ -6800,7 +6905,8 @@ static void mdy_display_state_changed(void)
     case MCE_DISPLAY_OFF:
     case MCE_DISPLAY_LPM_OFF:
         /* Blanking or already blanked -> set zero brightness */
-        mdy_brightness_force_level(0);
+        if (!mdy_use_low_power_mode || !mdy_low_power_mode_supported)
+            mdy_brightness_force_level(0);
         break;
 
     case MCE_DISPLAY_LPM_ON:
@@ -6890,8 +6996,8 @@ static void mdy_display_state_leave(display_state_t prev_state,
     bool have_power = mdy_stm_display_state_needs_power(prev_state);
     bool need_power = mdy_stm_display_state_needs_power(next_state);
 
-    /* Deny ALS brightness when heading to powered off state */
-    if( !need_power ) {
+    /* Deny ALS brightness when heading to powered off state, but allow in ambient mode */
+    if( !need_power && !(mdy_use_low_power_mode && mdy_low_power_mode_supported)) {
         mce_log(LL_DEBUG, "deny als fade");
         mdy_brightness_als_fade_allowed = false;
     }
@@ -6923,7 +7029,8 @@ static void mdy_display_state_leave(display_state_t prev_state,
     case MCE_DISPLAY_OFF:
     case MCE_DISPLAY_LPM_OFF:
         mdy_brightness_level_display_resume = 0;
-        mdy_brightness_set_fade_target_blank();
+        if (!mdy_use_low_power_mode || !mdy_low_power_mode_supported)
+            mdy_brightness_set_fade_target_blank();
         break;
 
     case MCE_DISPLAY_UNDEF:
@@ -8740,6 +8847,39 @@ static gboolean mdy_dbus_handle_display_off_req(DBusMessage *const msg)
     return TRUE;
 }
 
+static gboolean mdy_dbus_handle_lpm_enabled_req(DBusMessage *const msg)
+{
+    gboolean status = FALSE;
+	dbus_bool_t low_power_mode_supported = false;
+    DBusError error = DBUS_ERROR_INIT;
+
+    mce_log(LL_DEVEL, "Received lpm support from %s",
+            mce_dbus_get_message_sender_ident(msg));
+
+    /* Extract result */
+    if (dbus_message_get_args(msg, &error,
+                              DBUS_TYPE_BOOLEAN, &low_power_mode_supported,
+                              DBUS_TYPE_INVALID) == FALSE) {
+        mce_log(LL_ERR, "Failed to get argument from %s.%s; %s",
+                "org.freedesktop.DBus", "NameOwnerChanged",
+                error.message);
+        goto EXIT;
+    }
+    status = TRUE;
+
+EXIT:
+    mce_log(LL_DEVEL, "The compositor %s support for ambient mode.",
+            low_power_mode_supported ? "has" : "hasn't");
+
+    // We have a variable that we should use to set lpm mode availability based on ack.
+    mdy_low_power_mode_supported = low_power_mode_supported;
+
+    // Enable/disable lpm mode based on support from the compositor.
+    compositor_stm_send_lpm_request(mdy_compositor_ipc);
+
+    return status;
+}
+
 /** D-Bus callback for the display lpm method call
  *
  * @param msg The D-Bus message
@@ -9251,6 +9391,40 @@ static gboolean mdy_dbus_handle_desktop_started_sig(DBusMessage *const msg)
     return status;
 }
 
+/**
+ * D-Bus callback for timed wakeup event, used to update ambient display.
+ *
+ * @param msg The D-Bus message
+ * @return TRUE on success, FALSE on failure
+ */
+static gboolean mdy_dbus_timed_wakeup_sig(DBusMessage *const msg)
+{
+    gboolean status = FALSE;
+    dbus_bool_t dta = TRUE;
+    (void)msg;
+
+    mce_log(LL_DEBUG, "Received timed wakeup event, updating ambient display");
+    if (mdy_use_low_power_mode && mdy_low_power_mode_supported) {
+        bool ack = dbus_send_ex2(COMPOSITOR_SERVICE,
+                            COMPOSITOR_PATH,
+                            COMPOSITOR_IFACE,
+                            COMPOSITOR_SET_AMBIENT_UPDATES_ENABLED,
+                            NULL,
+                            COMPOSITOR_STM_DBUS_CALL_TIMEOUT,
+                            NULL, 0,
+                            NULL,
+                            DBUS_TYPE_BOOLEAN, &dta,
+                            DBUS_TYPE_INVALID);
+
+        if( !ack ) 
+            mce_log(LL_CRIT, "Failed to send ambient mode update request");
+    }
+
+    status = TRUE;
+
+    return status;
+}
+
 /** Array of dbus message handlers */
 static mce_dbus_handler_t mdy_dbus_handlers[] =
 {
@@ -9291,6 +9465,12 @@ static mce_dbus_handler_t mdy_dbus_handlers[] =
         .type      = DBUS_MESSAGE_TYPE_SIGNAL,
         .callback  = mdy_dbus_handle_desktop_started_sig,
     },
+    {
+        .interface = "com.nokia.time",
+        .name      = "wakeup_event",
+        .type      = DBUS_MESSAGE_TYPE_SIGNAL,
+        .callback  = mdy_dbus_timed_wakeup_sig,
+    },
     /* method calls */
     {
         .interface = MCE_REQUEST_IF,
@@ -9323,6 +9503,14 @@ static mce_dbus_handler_t mdy_dbus_handlers[] =
         .callback  = mdy_dbus_handle_cabc_mode_get_req,
         .args      =
             "    <arg direction=\"out\" name=\"cabc_mode\" type=\"s\"/>\n"
+    },
+    {
+        .interface = MCE_REQUEST_IF,
+        .name      = MCE_DISPLAY_LPM_SET_SUPPORTED,
+        .type      = DBUS_MESSAGE_TYPE_METHOD_CALL,
+        .callback  = mdy_dbus_handle_lpm_enabled_req,
+        .args      =
+            "    <arg direction=\"out\" name=\"enabled\" type=\"b\"/>\n"
     },
     {
         .interface = MCE_REQUEST_IF,
@@ -9794,7 +9982,8 @@ static void mdy_setting_cb(GConfClient *const gcc, const guint id,
     }
     else if (id == mdy_use_low_power_mode_setting_id) {
         mdy_use_low_power_mode = gconf_value_get_bool(gcv);
-
+        
+        compositor_stm_send_lpm_request(mdy_compositor_ipc);
         if (((display_state == MCE_DISPLAY_LPM_OFF) ||
              (display_state == MCE_DISPLAY_LPM_ON)) &&
             ((mdy_low_power_mode_supported == FALSE) ||
@@ -10222,6 +10411,7 @@ static void mdy_setting_init(void)
                            mdy_setting_cb,
                            &mdy_use_low_power_mode_setting_id);
 
+    compositor_stm_send_lpm_request(mdy_compositor_ipc);
     /* Blanking inhibit modes */
     mce_setting_track_int(MCE_SETTING_BLANKING_INHIBIT_MODE,
                           &mdy_blanking_inhibit_mode,

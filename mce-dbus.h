@@ -45,6 +45,10 @@
 /* Enabling/disabling display updates via compositor service */
 #define COMPOSITOR_SET_UPDATES_ENABLED "setUpdatesEnabled"
 
+#define COMPOSITOR_SET_AMBIENT_UPDATES_ENABLED "setAmbientUpdatesEnabled"
+#define COMPOSITOR_SET_AMBIENT_MODE_ENABLED "setAmbientEnabled"
+#define MCE_DISPLAY_LPM_SET_SUPPORTED "set_lpm_supported"
+
 /* ========================================================================= *
  * LIPSTICK DBUS SERVICE
  * ========================================================================= */

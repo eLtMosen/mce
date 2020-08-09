@@ -60,6 +60,8 @@ static bool fbdev_use_hybris = false;
 /** Flag for: Opening frame buffer device is allowed */
 static bool mce_fbdev_allow_open = false;
 
+static bool mce_fbdev_power_vsync_suspend = false;
+
 /* ========================================================================= *
  * FBDEV_FILE_DESCRIPTOR
  * ========================================================================= */
@@ -241,6 +243,11 @@ void mce_fbdev_linger_after_exit(int delay_ms)
  * FRAMEBUFFER_POWER
  * ========================================================================= */
 
+void mce_fbdev_set_suspend_mode(bool vsync_suspend)
+{
+    mce_log(LL_DEBUG, "fbdev suspend_mode %s", vsync_suspend ? "on" : "off");
+    mce_fbdev_power_vsync_suspend = vsync_suspend;
+}
 /** Set the frame buffer power state
  *
  * MCE uses this function for display power control only if autosuspend
@@ -254,10 +261,17 @@ void mce_fbdev_linger_after_exit(int delay_ms)
  */
 void mce_fbdev_set_power(bool power_on)
 {
-    mce_log(LL_DEBUG, "fbdev power %s", power_on ? "up" : "down");
+    mce_log(LL_DEBUG, "fbdev power %s", power_on ? "up" : (mce_fbdev_power_vsync_suspend ? "ambient" : "down"));
 
     if( mce_fbdev_handle != -1 ) {
-        int value = power_on ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+        int value;
+        if (power_on) {
+            value = FB_BLANK_UNBLANK;
+        } else if (mce_fbdev_power_vsync_suspend) {
+            value = FB_BLANK_VSYNC_SUSPEND;
+        } else {
+            value = FB_BLANK_POWERDOWN;
+        }
 
         if( ioctl(mce_fbdev_handle, FBIOBLANK, value) == -1 )
             mce_log(LL_ERR, "%s: ioctl(FBIOBLANK,%d): %m", FB_DEVICE, value);

@@ -61,7 +61,7 @@ typedef enum
 
 /** How power key "blank" action should behave */
 # define MCE_SETTING_POWERKEY_BLANKING_MODE        MCE_SETTING_POWERKEY_PATH "/blanking_mode"
-# define MCE_DEFAULT_POWERKEY_BLANKING_MODE        0 // = PWRKEY_BLANK_TO_OFF
+# define MCE_DEFAULT_POWERKEY_BLANKING_MODE        1 // = PWRKEY_BLANK_TO_OFF
 
 /** How many consequent power key presses trigger proximity override
  *

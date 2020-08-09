@@ -375,7 +375,7 @@
 
 /** Display blanking delay from lpm-on state [s] */
 # define MCE_SETTING_DISPLAY_BLANK_FROM_LPM_ON_TIMEOUT   MCE_SETTING_DISPLAY_PATH "/display_blank_from_lpm_on_timeout"
-# define MCE_DEFAULT_DISPLAY_BLANK_FROM_LPM_ON_TIMEOUT   5
+# define MCE_DEFAULT_DISPLAY_BLANK_FROM_LPM_ON_TIMEOUT   1
 
 /** Display blanking delay from lpm-off state [s]
  *
@@ -384,7 +384,7 @@
  *       will cause transition back to lpm-on state.
  */
 # define MCE_SETTING_DISPLAY_BLANK_FROM_LPM_OFF_TIMEOUT  MCE_SETTING_DISPLAY_PATH "/display_blank_from_lpm_off_timeout"
-# define MCE_DEFAULT_DISPLAY_BLANK_FROM_LPM_OFF_TIMEOUT  5
+# define MCE_DEFAULT_DISPLAY_BLANK_FROM_LPM_OFF_TIMEOUT  1
 
 /** Whether display blanking is forbidden
  *
@@ -502,7 +502,7 @@ typedef enum {
  * to blank the screen after a while.
  */
 # define MCE_SETTING_USE_LOW_POWER_MODE                  MCE_SETTING_DISPLAY_PATH "/use_low_power_mode"
-# define MCE_DEFAULT_USE_LOW_POWER_MODE                  false
+# define MCE_DEFAULT_USE_LOW_POWER_MODE                  true
 
 /* ------------------------------------------------------------------------- *
  * Power Management related settings

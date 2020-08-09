@@ -36,6 +36,7 @@ void mce_fbdev_close             (void);
 void mce_fbdev_reopen            (void);
 bool mce_fbdev_is_open           (void);
 
+void mce_fbdev_set_suspend_mode  (bool vsync_suspend);
 void mce_fbdev_set_power         (bool power_on);
 
 void mce_fbdev_linger_after_exit (int delay_ms);

@@ -807,12 +807,12 @@ fba_inputflt_sampling_output(int lux)
 
     fba_inputflt_output_lux = lux;
 
-    fba_datapipe_execute_brightness_change();
-
     /* Feed filtered sensor data to datapipe */
     execute_datapipe(&ambient_light_level_pipe,
                      GINT_TO_POINTER(fba_inputflt_output_lux),
                      USE_INDATA, CACHE_INDATA);
+
+    fba_datapipe_execute_brightness_change();
 EXIT:
     return;
 }
@@ -1286,9 +1286,14 @@ fba_datapipe_lpm_brightness_filter(gpointer data)
     if( lut_lpm.profiles < 1 )
         goto EXIT;
 
+    int max_prof = lut_lpm.profiles - 1;
+
+    int prof = mce_xlat_int(1,100, 0,max_prof, value);
+
     /* Note: Input value is ignored and output is
      *       determined only by the als config */
-    value = fba_als_filter_run(&lut_lpm, 0, fba_inputflt_output_lux);
+    value = fba_als_filter_run(&lut_lpm, prof, fba_inputflt_output_lux);
+
 
 EXIT:
     return GINT_TO_POINTER(value);
@@ -1744,6 +1749,10 @@ fba_status_rethink(void)
 
     mce_log(LL_DEBUG, "enabled=%d; autobright=%d; filter_lid=%d -> enable=%d",
             fba_setting_als_enabled, fba_setting_als_autobrightness, fba_setting_filter_lid_with_als, enable_new);
+
+    /* When the display module is loaded the function datapipe binding is inited, this causes a a brightness update without filtering.
+     * fba_status_rethink is called when the module is loaded. Also execute the brightness filter pipe. Fixing als not filtering on boot. */
+    fba_datapipe_execute_brightness_change();
 
     enable_old = enable_new;
 
