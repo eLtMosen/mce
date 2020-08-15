@@ -8850,7 +8850,7 @@ static gboolean mdy_dbus_handle_display_off_req(DBusMessage *const msg)
 static gboolean mdy_dbus_handle_lpm_enabled_req(DBusMessage *const msg)
 {
     gboolean status = FALSE;
-	dbus_bool_t low_power_mode_supported = false;
+    dbus_bool_t low_power_mode_supported = false;
     DBusError error = DBUS_ERROR_INIT;
 
     mce_log(LL_DEVEL, "Received lpm support from %s",
