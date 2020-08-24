@@ -3732,12 +3732,11 @@ sfw_notify_wrist(sfw_notify_t type, bool input_value)
 
     ev = malloc(sizeof(struct input_event));
 
-    mce_log(LL_CRUCIAL, "[longpress] double tap emulated from wrist gesture");
-    mce_log(LL_DEVEL, "[longpress] double tap emulated from wrist gesture");
+    mce_log(LL_DEVEL, "tilt-to-wake gesture from wrist gesture");
 
     ev->type  = EV_MSC;
     ev->code  = MSC_GESTURE;
-    ev->value = GESTURE_DOUBLETAP;
+    ev->value = GESTURE_TILT_TO_WAKE;
  
     evin_iomon_generate_activity(ev, true, true);
 
