@@ -6265,6 +6265,9 @@ compositor_stm_enter_state(compositor_stm_t *self)
         compositor_stm_cancel_killer(self);
         compositor_stm_cancel_panic(self);
 
+        /* Compositor is ready to receive D-Bus messages, send request to enable/disable lpm. */
+        compositor_stm_send_lpm_request(self);
+
         /* Wake display state machine */
         mdy_stm_schedule_rethink();
         break;
@@ -8871,11 +8874,13 @@ EXIT:
     mce_log(LL_DEVEL, "The compositor %s support for ambient mode.",
             low_power_mode_supported ? "has" : "hasn't");
 
-    // We have a variable that we should use to set lpm mode availability based on ack.
-    mdy_low_power_mode_supported = low_power_mode_supported;
+    if (!mdy_low_power_mode_supported != !low_power_mode_supported) {
+        // We have a variable that we should use to set lpm mode availability based on ack.
+        mdy_low_power_mode_supported = low_power_mode_supported;
 
-    // Enable/disable lpm mode based on support from the compositor.
-    compositor_stm_send_lpm_request(mdy_compositor_ipc);
+        // Enable/disable lpm mode based on support from the compositor.
+        compositor_stm_send_lpm_request(mdy_compositor_ipc);
+    }
 
     return status;
 }
@@ -10411,7 +10416,6 @@ static void mdy_setting_init(void)
                            mdy_setting_cb,
                            &mdy_use_low_power_mode_setting_id);
 
-    compositor_stm_send_lpm_request(mdy_compositor_ipc);
     /* Blanking inhibit modes */
     mce_setting_track_int(MCE_SETTING_BLANKING_INHIBIT_MODE,
                           &mdy_blanking_inhibit_mode,
