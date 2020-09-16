@@ -374,6 +374,7 @@ static bool                mdy_shutdown_in_progress(void);
  * ------------------------------------------------------------------------- */
 
 static void                mdy_datapipe_ambient_light_level_cb(gconstpointer data);;
+static void                mdy_datapipe_touch_detected_cb(gconstpointer data);;
 static void                mdy_datapipe_packagekit_locked_cb(gconstpointer data);;
 static void                mdy_datapipe_system_state_cb(gconstpointer data);
 static void                mdy_datapipe_submode_cb(gconstpointer data);
@@ -1556,6 +1557,28 @@ EXIT:
     return;
 }
 
+/**
+ * Handle touchscreen detections.
+ *
+ * @param data The touch pressed/unpressed in a pointer
+ */
+static void mdy_datapipe_touch_detected_cb(gconstpointer data)
+{
+    gboolean touch_detected = GPOINTER_TO_INT(data);
+
+    /* Log by default as it might help analyzing lpm problems */
+    mce_log(LL_DEBUG, "touch_detected = %d", touch_detected);
+
+    switch( display_state ) {
+    case MCE_DISPLAY_LPM_ON:
+        /* Screen is in LPM mode, exit LPM mode when touch is detected. */
+        mce_datapipe_req_display_state(MCE_DISPLAY_ON);
+        break;
+    default:
+        break;
+    }
+}
+
 /** Keypad slide input state; assume closed */
 static cover_state_t kbd_slide_input_state = COVER_CLOSED;
 
@@ -2064,6 +2087,10 @@ static datapipe_handler_t mdy_datapipe_handlers[] =
     {
         .datapipe  = &ambient_light_level_pipe,
         .output_cb = mdy_datapipe_ambient_light_level_cb,
+    },
+    {
+        .datapipe  = &touch_detected_pipe,
+        .output_cb = mdy_datapipe_touch_detected_cb,
     },
     {
         .datapipe  = &packagekit_locked_pipe,
