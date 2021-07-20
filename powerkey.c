@@ -529,6 +529,7 @@ static void     pwrkey_setting_quit            (void);
  * ------------------------------------------------------------------------- */
 
 static void pwrkey_datapipes_keypress_cb(gconstpointer const data);
+static void pwrkey_datapipes_touchscreen_cb(gconstpointer const data);
 static void pwrkey_datapipe_ngfd_available_cb(gconstpointer data);
 static void pwrkey_datapipe_system_state_cb(gconstpointer data);
 static void pwrkey_datapipe_display_state_cb(gconstpointer data);
@@ -2862,6 +2863,103 @@ EXIT:
 }
 
 /**
+ * Datapipe trigger for the [sleep] key
+ *
+ * @param data A pointer to the input_event struct
+ */
+static void
+pwrkey_datapipes_touchscreen_cb(gconstpointer const data)
+{
+    /* Faulty/aged physical power key buttons can generate
+     * bursts of press and release events that are then
+     * interpreted as double presses. To avoid this we
+     * ignore power key presses that occur so soon after
+     * previous release that they are unlikely to be
+     * caused by human activity. */
+
+    /* Minimum delay between power key release and press. */
+    static const int64_t press_delay = 50;
+
+    /* Time limit for accepting the next power key press */
+    static int64_t press_limit = 0;
+
+    const struct input_event * const *evp;
+    const struct input_event *ev;
+
+    if( !(evp = data) )
+        goto EXIT;
+
+    if( !(ev = *evp) )
+        goto EXIT;
+
+    switch( ev->type ) {
+    case EV_KEY:
+        switch( ev->code ) {
+        case KEY_SLEEP:
+            if( ev->value == 1 ) {
+                if( mce_lib_get_boot_tick() < press_limit ) {
+                    /* Too soon after the previous powerkey
+                     * release -> assume faulty hw sending
+                     * bursts of presses */
+                    mce_log(LL_CRUCIAL, "sleep press event ignored");
+                }
+                else {
+                    mce_log(LL_CRUCIAL, "sleep press event");
+                    /* Detect repeated power key pressing while
+                     * proximity sensor is covered; assume it means
+                     * the sensor is stuck and user wants to be able
+                     * to turn on the display regardless of the sensor
+                     * state */
+                    pwrkey_ps_override_evaluate();
+
+                    /* Power key pressed */
+                    pwrkey_stm_powerkey_pressed();
+
+                    /* Some devices report both power key press and release
+                     * already when the physical button is pressed down.
+                     * Other devices wait for physical release before
+                     * reporting key release. And in some devices it depends
+                     * on whether the device is suspended or not.
+                     *
+                     * To normalize behavior in default configuration (i.e.
+                     * begin display power up already on power key press
+                     * without waiting for user to lift finger off the button):
+                     * Synthetize key release, if no actions are bound to long
+                     * power key press from display off state. */
+                    if( pwrkey_stm_display_state == MCE_DISPLAY_OFF ) {
+                        if( !pwrkey_actions_from_display_off.mask_long ) {
+                            mce_log(LL_DEBUG, "sleep release event simulated");
+                            pwrkey_stm_powerkey_released();
+                        }
+                    }
+                }
+            }
+            else if( ev->value == 0 ) {
+                mce_log(LL_CRUCIAL, "sleep release event");
+                /* Power key released */
+                pwrkey_stm_powerkey_released();
+
+                /* Adjust time limit for accepting the next power
+                 * key press */
+                press_limit = mce_lib_get_boot_tick() + press_delay;
+            }
+
+            pwrkey_stm_rethink_wakelock();
+            break;
+
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+
+EXIT:
+    return;
+}
+
+/**
  * Datapipe trigger for the [power] key
  *
  * @param data A pointer to the input_event struct
@@ -3051,6 +3149,10 @@ static datapipe_handler_t pwrkey_datapipe_handlers[] =
     {
         .datapipe = &keypress_pipe,
         .input_cb = pwrkey_datapipes_keypress_cb,
+    },
+    {
+        .datapipe = &touchscreen_pipe,
+        .input_cb = pwrkey_datapipes_touchscreen_cb,
     },
     // output triggers
     {

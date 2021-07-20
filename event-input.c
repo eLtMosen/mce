@@ -2077,6 +2077,12 @@ evin_iomon_touchscreen_cb(mce_io_mon_t *iomon, gpointer data, gsize bytes_read)
         execute_datapipe(&touchscreen_pipe, &ev,
                          USE_INDATA, DONT_CACHE_INDATA);
     }
+    else if( ev->type == EV_KEY && ev->code == KEY_SLEEP ) {
+        /* Report palm events. */
+        execute_datapipe(&touchscreen_pipe, &ev,
+                         USE_INDATA, DONT_CACHE_INDATA);
+        goto EXIT;
+    }
 
 EXIT:
     return flush;
