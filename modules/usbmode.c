@@ -99,6 +99,8 @@ static const struct
     { "USB connected",              USB_CABLE_CONNECTED    },
     { "charger_connected",          USB_CABLE_CONNECTED    },
     { "developer_mode",             USB_CABLE_CONNECTED    },
+    { "ssh_mode",                   USB_CABLE_CONNECTED    },
+    { "adb_mode",                   USB_CABLE_CONNECTED    },
     { "charging_only",              USB_CABLE_CONNECTED    },
     { "dedicated_charger",          USB_CABLE_CONNECTED    },
 
